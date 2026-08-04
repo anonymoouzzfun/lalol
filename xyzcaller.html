@@ -35,26 +35,30 @@
     let device;
     let currentCall;
 
-    try {
-      device = new Twilio.Device(jwtToken, {
-        codecPreferences: ['opus', 'pcmu'],
-      });
-      device.register();
+    (async function initializeTwilio() {
+      try {
+        device = new Twilio.Device(jwtToken, {
+          codecPreferences: ['opus', 'pcmu'],
+        });
+        
+        device.on('registered', () => {
+          statusEl.innerText = 'Device registered. Ready to call.';
+          callBtn.innerText = 'Call';
+          callBtn.disabled = false;
+        });
 
-      device.on('registered', () => {
-        statusEl.innerText = 'Device registered. Ready to call.';
-        callBtn.innerText = 'Call';
-        callBtn.disabled = false;
-      });
+        device.on('error', (twilioError) => {
+          statusEl.innerText = 'Device Error.';
+          errorLogEl.innerText = twilioError.message;
+        });
 
-      device.on('error', (twilioError) => {
-        statusEl.innerText = 'Device Error.';
-        errorLogEl.innerText = twilioError.message;
-      });
-    } catch (e) {
-      statusEl.innerText = 'Failed to initialize device.';
-      errorLogEl.innerText = e.message;
-    }
+        await device.register();
+
+      } catch (e) {
+        statusEl.innerText = 'Failed to initialize device.';
+        errorLogEl.innerText = e.message || 'Check if your JWT token has expired.';
+      }
+    })();
 
     callBtn.addEventListener('click', async () => {
       errorLogEl.innerText = '';
@@ -85,8 +89,8 @@
           callBtn.disabled = false;
           hangupBtn.disabled = true;
           
-          if (call && call.customParameters && call.customParameters.get('error')) {
-             errorLogEl.innerText = 'Twilio dropped the call: ' + call.customParameters.get('error');
+          if (call && call.customParameters && call.customParameters.has('error')) {
+             errorLogEl.innerText = 'XYZCaller dropped the call: ' + call.customParameters.get('error');
           }
         });
 
