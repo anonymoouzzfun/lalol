@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>xyzcaller</title>
+  <script src="https://sdk.twilio.com/js/voice/releases/2.10.0/twilio.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 400px; }
+    input, button { padding: 10px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+    #status { margin-top: 15px; font-weight: bold; color: #333; }
+  </style>
+</head>
+<body>
+  <h2>xyzcaller</h2>
+  
+  <label for="dial-number">Number to dial:</label>
+  <input type="text" id="dial-number" placeholder="+12345678901">
+  
+  <button id="call-btn" disabled>Initialize Device...</button>
+  <button id="hangup-btn" disabled>Hang Up</button>
+
+  <div id="status">Waiting for initialization...</div>
+
+  <script>
+    const jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6InR3aWxpby1mcGE7dj0xIn0.eyJqdGkiOiJTS2I0ZjVmODQyNDlkNWY3YzY3NzYwOTgzZjNhYTc0MWM5LTE3ODU4MTc4MzgiLCJncmFudHMiOnsiaWRlbnRpdHkiOiJjZWM3MzE0MC1hZmZjLTQyZDAtYTI2Yi0xOTA5ODU1MTA5YzciLCJ2b2ljZSI6eyJvdXRnb2luZyI6eyJhcHBsaWNhdGlvbl9zaWQiOiJBUGRiMTBmZmYzMzk2YWIyNmI2MzgxOGFiZGI5MzM1MTQ4In19fSwiaWF0IjoxNzg1ODE3ODM4LCJleHAiOjE3ODU4MjE0MzgsImlzcyI6IlNLYjRmNWY4NDI0OWQ1ZjdjNjc3NjA5ODNmM2FhNzQxYzkiLCJzdWIiOiJBQzY2NGQ3MmMxYTc0MTAyNmZmNTRhNDllZDI0MWYwMzRlIn0.aNuUedFHHy09M559-Rfum1hDxVJag2fpRJ39ZxwrmFE";
+    const callerNumber = "+15123573935"; 
+
+    const statusEl = document.getElementById('status');
+    const callBtn = document.getElementById('call-btn');
+    const hangupBtn = document.getElementById('hangup-btn');
+    const dialInput = document.getElementById('dial-number');
+
+    let device;
+    let currentCall;
+
+    try {
+      device = new Twilio.Device(jwtToken, {
+        codecPreferences: ['opus', 'pcmu'],
+      });
+      device.register();
+
+      device.on('registered', () => {
+        statusEl.innerText = 'Device registered. Ready to call.';
+        callBtn.innerText = 'Call';
+        callBtn.disabled = false;
+      });
+
+      device.on('error', (twilioError) => {
+        statusEl.innerText = 'Error: ' + twilioError.message;
+      });
+    } catch (e) {
+      statusEl.innerText = 'Failed to initialize device.';
+    }
+
+    callBtn.addEventListener('click', async () => {
+      const numberToCall = dialInput.value.trim();
+      if (!numberToCall) {
+        alert("Please enter a number to dial!");
+        return;
+      }
+
+      statusEl.innerText = 'Calling ' + numberToCall + '...';
+      callBtn.disabled = true;
+
+      try {
+        currentCall = await device.connect({
+          params: {
+            To: numberToCall,
+            From: callerNumber 
+          }
+        });
+        
+        currentCall.on('accept', () => {
+          statusEl.innerText = 'Call connected.';
+          hangupBtn.disabled = false;
+        });
+
+        currentCall.on('disconnect', () => {
+          statusEl.innerText = 'Call ended.';
+          callBtn.disabled = false;
+          hangupBtn.disabled = true;
+        });
+      } catch (err) {
+        statusEl.innerText = 'Call failed to connect.';
+        callBtn.disabled = false;
+      }
+    });
+
+    hangupBtn.addEventListener('click', () => {
+      if (currentCall) {
+        currentCall.disconnect();
+      }
+    });
+  </script>
+</body>
+</html>
