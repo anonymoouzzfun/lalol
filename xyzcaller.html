@@ -7,6 +7,7 @@
     body { font-family: sans-serif; padding: 20px; max-width: 400px; }
     input, button { padding: 10px; margin: 5px 0; width: 100%; box-sizing: border-box; }
     #status { margin-top: 15px; font-weight: bold; color: #333; }
+    #error-log { margin-top: 15px; color: red; font-size: 0.9em; }
   </style>
 </head>
 <body>
@@ -19,12 +20,14 @@
   <button id="hangup-btn" disabled>Hang Up</button>
 
   <div id="status">Waiting for initialization...</div>
+  <div id="error-log"></div>
 
   <script>
     const jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImN0eSI6InR3aWxpby1mcGE7dj0xIn0.eyJqdGkiOiJTS2I0ZjVmODQyNDlkNWY3YzY3NzYwOTgzZjNhYTc0MWM5LTE3ODU4MTc4MzgiLCJncmFudHMiOnsiaWRlbnRpdHkiOiJjZWM3MzE0MC1hZmZjLTQyZDAtYTI2Yi0xOTA5ODU1MTA5YzciLCJ2b2ljZSI6eyJvdXRnb2luZyI6eyJhcHBsaWNhdGlvbl9zaWQiOiJBUGRiMTBmZmYzMzk2YWIyNmI2MzgxOGFiZGI5MzM1MTQ4In19fSwiaWF0IjoxNzg1ODE3ODM4LCJleHAiOjE3ODU4MjE0MzgsImlzcyI6IlNLYjRmNWY4NDI0OWQ1ZjdjNjc3NjA5ODNmM2FhNzQxYzkiLCJzdWIiOiJBQzY2NGQ3MmMxYTc0MTAyNmZmNTRhNDllZDI0MWYwMzRlIn0.aNuUedFHHy09M559-Rfum1hDxVJag2fpRJ39ZxwrmFE";
     const callerNumber = "+15123573935"; 
 
     const statusEl = document.getElementById('status');
+    const errorLogEl = document.getElementById('error-log');
     const callBtn = document.getElementById('call-btn');
     const hangupBtn = document.getElementById('hangup-btn');
     const dialInput = document.getElementById('dial-number');
@@ -45,13 +48,16 @@
       });
 
       device.on('error', (twilioError) => {
-        statusEl.innerText = 'Error: ' + twilioError.message;
+        statusEl.innerText = 'Device Error.';
+        errorLogEl.innerText = twilioError.message;
       });
     } catch (e) {
       statusEl.innerText = 'Failed to initialize device.';
+      errorLogEl.innerText = e.message;
     }
 
     callBtn.addEventListener('click', async () => {
+      errorLogEl.innerText = '';
       const numberToCall = dialInput.value.trim();
       if (!numberToCall) {
         alert("Please enter a number to dial!");
@@ -74,13 +80,25 @@
           hangupBtn.disabled = false;
         });
 
-        currentCall.on('disconnect', () => {
+        currentCall.on('disconnect', (call) => {
           statusEl.innerText = 'Call ended.';
           callBtn.disabled = false;
           hangupBtn.disabled = true;
+          
+          if (call && call.customParameters && call.customParameters.get('error')) {
+             errorLogEl.innerText = 'Twilio dropped the call: ' + call.customParameters.get('error');
+          }
         });
+
+        currentCall.on('error', (error) => {
+          statusEl.innerText = 'Call failed.';
+          errorLogEl.innerText = error.message || 'Unknown error occurred';
+          callBtn.disabled = false;
+        });
+
       } catch (err) {
         statusEl.innerText = 'Call failed to connect.';
+        errorLogEl.innerText = err.message;
         callBtn.disabled = false;
       }
     });
